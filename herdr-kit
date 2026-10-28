@@ -36,6 +36,7 @@ Commands:
 Options:
   --dry-run   Show what setup would change, change nothing
   --yes       Answer yes to every prompt
+  --json      With doctor: print the checks as JSON
   -h, --help  Show this help
 EOF
 }
@@ -58,13 +59,12 @@ cmd_setup() {
   for m in $HK_MODULES; do
     setup_module "$m"
   done
-  run_doctor || [[ $? -eq $HK_E_NOT_IMPLEMENTED ]]
+  run_doctor
 }
 
 cmd_doctor() {
-  [[ $# -eq 0 ]] || usage_error "doctor: unknown argument: $1"
   hk_detect_os
-  run_doctor || [[ $? -eq $HK_E_NOT_IMPLEMENTED ]]
+  run_doctor "$@"
 }
 
 usage_error() {

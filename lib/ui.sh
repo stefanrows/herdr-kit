@@ -23,6 +23,16 @@ skip() { _hk_say "$_HK_GREY" "–" "$*"; }
 warn() { _hk_say "$_HK_YELLOW" "!" "$*"; }
 fail() { _hk_say "$_HK_RED" "✗" "$*"; }
 
+# hk_json_str <string>: prints the string as a quoted JSON string.
+hk_json_str() {
+  local s=$1
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}
+  s=${s//$'\t'/\\t}
+  printf '"%s"' "$s"
+}
+
 # Stub helper: not_implemented <name>
 not_implemented() {
   warn "$1: not implemented yet"

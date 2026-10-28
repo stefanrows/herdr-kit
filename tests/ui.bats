@@ -34,6 +34,12 @@ setup() {
   [ "$status" -ne 0 ]
 }
 
+@test "hk_json_str quotes and escapes" {
+  [ "$(hk_json_str plain)" = '"plain"' ]
+  [ "$(hk_json_str 'say "hi" \ there')" = '"say \"hi\" \\ there"' ]
+  [ "$(hk_json_str $'a\tb\nc')" = '"a\tb\nc"' ]
+}
+
 @test "not_implemented warns and returns its code" {
   run not_implemented tailscale
   [ "$status" -eq "$HK_E_NOT_IMPLEMENTED" ]

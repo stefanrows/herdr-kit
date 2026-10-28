@@ -30,17 +30,25 @@ setup() {
   [[ $output == *"unknown argument: --nope"* ]]
 }
 
-@test "setup --dry-run walks every module in order" {
+@test "setup --dry-run walks every module in order, then runs doctor" {
   run "$HK" setup --dry-run
-  [ "$status" -eq 0 ]
+  # Doctor reads the real machine, so its exit code (0 or 1) is not pinned here.
+  [ "$status" -le 1 ]
   [ "${lines[0]}" = "! tailscale: not implemented yet" ]
   [ "${lines[1]}" = "! ssh: not implemented yet" ]
   [ "${lines[2]}" = "! herdr: not implemented yet" ]
-  [ "${lines[3]}" = "! doctor: not implemented yet" ]
+  [[ ${lines[3]} == *"OS: "* ]]
 }
 
 @test "flags work before the command" {
   run "$HK" --dry-run --yes doctor
-  [ "$status" -eq 0 ]
-  [ "$output" = "! doctor: not implemented yet" ]
+  [ "$status" -le 1 ]
+  [[ ${lines[0]} == *"OS: "* ]]
+}
+
+@test "doctor --json prints one JSON object" {
+  run "$HK" doctor --json
+  [ "$status" -le 1 ]
+  [ "${#lines[@]}" -eq 1 ]
+  [[ $output == '{"ok":'* ]]
 }
