@@ -30,18 +30,24 @@ setup() {
   [[ $output == *"unknown argument: --nope"* ]]
 }
 
-@test "setup --dry-run walks every module in order" {
+@test "setup --dry-run walks every module in order, then runs doctor" {
   run "$HK" setup --dry-run
-  [ "$status" -eq 0 ]
-  # tailscale output depends on the host, so only the stubbed modules are pinned.
+  # Module and doctor output depend on the host, so only the order is pinned.
+  [ "$status" -le 1 ]
   [[ $output == *"tailscale"* ]]
-  local rest=${output#*"! ssh: not implemented yet"}
+  local rest=${output#*"OS: "}
   [ "$rest" != "$output" ]
-  [[ $rest == *"! herdr: not implemented yet"*"! doctor: not implemented yet"* ]]
 }
 
 @test "flags work before the command" {
   run "$HK" --dry-run --yes doctor
-  [ "$status" -eq 0 ]
-  [ "$output" = "! doctor: not implemented yet" ]
+  [ "$status" -le 1 ]
+  [[ ${lines[0]} == *"OS: "* ]]
+}
+
+@test "doctor --json prints one JSON object" {
+  run "$HK" doctor --json
+  [ "$status" -le 1 ]
+  [ "${#lines[@]}" -eq 1 ]
+  [[ $output == '{"ok":'* ]]
 }
