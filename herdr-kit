@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# herdr-kit: a community kit for multi-machine Herdr setups.
+# Thin subcommand dispatcher: every cmd_<name> function is a subcommand.
+set -euo pipefail
+
+HK_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export HK_ROOT
+
+# shellcheck source=lib/ui.sh
+source "$HK_ROOT/lib/ui.sh"
+# shellcheck source=lib/os.sh
+source "$HK_ROOT/lib/os.sh"
+# shellcheck source=lib/tailscale.sh
+source "$HK_ROOT/lib/tailscale.sh"
+# shellcheck source=lib/ssh.sh
+source "$HK_ROOT/lib/ssh.sh"
+# shellcheck source=lib/herdr.sh
+source "$HK_ROOT/lib/herdr.sh"
+# shellcheck source=lib/doctor.sh
+source "$HK_ROOT/lib/doctor.sh"
+
+# Setup order: the tailnet first, then SSH over it, then Herdr on top.
+HK_MODULES="tailscale ssh herdr"
+
+usage() {
+  cat <<'EOF'
+Usage: herdr-kit <command> [options]
+
+A community kit for multi-machine Herdr setups.
+Not affiliated with Herdr or Tailscale.
+
+Commands:
+  setup     Get this machine ready for a multi-machine Herdr setup
+  doctor    Check this machine (changes nothing)
+
+Options:
+  --dry-run   Show what setup would change, change nothing
+  --yes       Answer yes to every prompt
+  -h, --help  Show this help
+EOF
+}
+
+# Runs check_<m>; on "not ready" runs install_<m>. Modules print their own lines.
+setup_module() {
+  local m=$1 rc=0
+  "check_$m" || rc=$?
+  case $rc in
+    0) return 0 ;;
+    "$HK_E_NOT_IMPLEMENTED") return 0 ;;
+  esac
+  "install_$m"
+}
+
+cmd_setup() {
+  [[ $# -eq 0 ]] || usage_error "setup: unknown argument: $1"
+  hk_detect_os
+  local m
+  for m in $HK_MODULES; do
+    setup_module "$m"
+  done
+  run_doctor || [[ $? -eq $HK_E_NOT_IMPLEMENTED ]]
+}
+
+cmd_doctor() {
+  [[ $# -eq 0 ]] || usage_error "doctor: unknown argument: $1"
+  hk_detect_os
+  run_doctor || [[ $? -eq $HK_E_NOT_IMPLEMENTED ]]
+}
+
+usage_error() {
+  printf 'herdr-kit: %s\n\n' "$*" >&2
+  usage >&2
+  exit 2
+}
+
+main() {
+  HK_DRY_RUN=${HK_DRY_RUN:-0}
+  HK_YES=${HK_YES:-0}
+  local cmd="" args=()
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --dry-run) HK_DRY_RUN=1 ;;
+      --yes) HK_YES=1 ;;
+      -h | --help) usage; return 0 ;;
+      *)
+        if [[ -z $cmd && $1 != -* ]]; then cmd=$1; else args+=("$1"); fi
+        ;;
+    esac
+    shift
+  done
+  export HK_DRY_RUN HK_YES
+
+  if [[ -z $cmd ]]; then
+    usage
+    return 0
+  fi
+  declare -F "cmd_$cmd" >/dev/null || usage_error "unknown command: $cmd"
+  # ${args[@]+...} keeps an empty array safe under set -u on bash 3.2.
+  "cmd_$cmd" ${args[@]+"${args[@]}"}
+}
+
+main "$@"
