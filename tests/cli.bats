@@ -33,10 +33,11 @@ setup() {
 @test "setup --dry-run walks every module in order" {
   run "$HK" setup --dry-run
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "! tailscale: not implemented yet" ]
-  [ "${lines[1]}" = "! ssh: not implemented yet" ]
-  [ "${lines[2]}" = "! herdr: not implemented yet" ]
-  [ "${lines[3]}" = "! doctor: not implemented yet" ]
+  # tailscale output depends on the host, so only the stubbed modules are pinned.
+  [[ $output == *"tailscale"* ]]
+  local rest=${output#*"! ssh: not implemented yet"}
+  [ "$rest" != "$output" ]
+  [[ $rest == *"! herdr: not implemented yet"*"! doctor: not implemented yet"* ]]
 }
 
 @test "flags work before the command" {
