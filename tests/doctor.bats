@@ -26,6 +26,7 @@ green() {
   stub tailscale_ssh 0 off
   stub herdr 0 0.9.5
   stub claude 0 "current (v11)"
+  doctor_host_fingerprint() { printf 'SHA256:abc\n'; }
 }
 
 stub() {
@@ -51,8 +52,33 @@ _stub_probe() {
   [ "${lines[4]}" = "✓ Tailscale SSH: off" ]
   [ "${lines[5]}" = "✓ Herdr: 0.9.5" ]
   [ "${lines[6]}" = "✓ Claude Code integration: current (v11)" ]
-  [ "${lines[7]}" = "On your hub, run: herdr machine add mbp" ]
-  [ "${#lines[@]}" -eq 8 ]
+  [ "${lines[7]}" = "On your hub, run:" ]
+  [ "${lines[8]}" = "  ssh-copy-id mbp" ]
+  [ "${lines[9]}" = "  herdr machine add mbp" ]
+  [ "${lines[10]}" = "ssh-copy-id asks to trust this machine: accept only SHA256:abc" ]
+  [[ ${lines[11]} == "If ssh says the host key changed"*"ssh-keygen -R"* ]]
+  [ "${#lines[@]}" -eq 12 ]
+}
+
+@test "host key unreadable: machine add line stays, no fingerprint" {
+  green
+  doctor_host_fingerprint() { :; }
+  run run_doctor
+  [ "$status" -eq 0 ]
+  [[ $output == *"herdr machine add mbp"* ]]
+  [[ $output == *"accept its host key."* ]]
+  [[ $output != *"SHA256"* ]]
+}
+
+@test "doctor_host_fingerprint: reads the public host key, empty when missing" {
+  ssh-keygen -q -t ed25519 -N '' -f "$BATS_TEST_TMPDIR/key"
+  expected=$(ssh-keygen -lf "$BATS_TEST_TMPDIR/key.pub" | cut -d' ' -f2)
+  HK_SSH_HOST_KEY=$BATS_TEST_TMPDIR/key.pub run doctor_host_fingerprint
+  [ "$output" = "$expected" ]
+  [[ $output == SHA256:* ]]
+  HK_SSH_HOST_KEY=$BATS_TEST_TMPDIR/missing.pub run doctor_host_fingerprint
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
 }
 
 @test "Tailscale SSH on: no machine add line, points to setup, exit 1" {
@@ -124,7 +150,7 @@ _stub_probe() {
   expected+='{"id":"tailscale_ssh","label":"Tailscale SSH","status":"ok","detail":"off"},'
   expected+='{"id":"herdr","label":"Herdr","status":"ok","detail":"0.9.5"},'
   expected+='{"id":"claude","label":"Claude Code integration","status":"ok","detail":"current (v11)"}'
-  expected+='],"machine_add":"herdr machine add mbp"}'
+  expected+='],"machine_add":"herdr machine add mbp","host_key":"SHA256:abc"}'
   [ "$output" = "$expected" ]
 }
 
@@ -137,7 +163,7 @@ _stub_probe() {
   [[ $output == '{"ok":false,'* ]]
   [[ $output == *'"id":"tailscale_ssh","label":"Tailscale SSH","status":"fail","detail":"on (must be off)"'* ]]
   [[ $output == *'"id":"claude","label":"Claude Code integration","status":"skip"'* ]]
-  [[ $output == *',"machine_add":null}' ]]
+  [[ $output == *',"machine_add":null,"host_key":null}' ]]
 }
 
 @test "a check with no probe fails instead of crashing" {

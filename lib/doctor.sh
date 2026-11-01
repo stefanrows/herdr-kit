@@ -93,6 +93,14 @@ doctor_probe_tailscale_ssh() {
   esac
 }
 
+# Not a check: the fingerprint the hub must accept on its first ssh. Empty when unreadable.
+doctor_host_fingerprint() {
+  local key=${HK_SSH_HOST_KEY:-/etc/ssh/ssh_host_ed25519_key.pub} out
+  out=$(ssh-keygen -lf "$key" 2>/dev/null) || return 0
+  out=${out#* }
+  printf '%s\n' "${out%% *}"
+}
+
 doctor_probe_herdr() {
   if ! command -v herdr >/dev/null 2>&1; then
     printf 'not installed\n'
@@ -176,18 +184,29 @@ run_doctor() {
     fi
   done
 
-  local add_line=""
-  [[ $needed_bad == 1 || $ssh_on == 1 ]] || add_line="herdr machine add $name"
+  local add_line="" fingerprint=""
+  if [[ $needed_bad == 0 && $ssh_on == 0 ]]; then
+    add_line="herdr machine add $name"
+    fingerprint=$(doctor_host_fingerprint)
+  fi
 
   if [[ $json == 1 ]]; then
-    local add_json=null
+    local add_json=null key_json=null
     [[ -z $add_line ]] || add_json=$(hk_json_str "$add_line")
-    printf '{"ok":%s,"checks":[%s],"machine_add":%s}\n' \
-      "$([[ $bad == 0 ]] && printf true || printf false)" "$items" "$add_json"
+    [[ -z $fingerprint ]] || key_json=$(hk_json_str "$fingerprint")
+    printf '{"ok":%s,"checks":[%s],"machine_add":%s,"host_key":%s}\n' \
+      "$([[ $bad == 0 ]] && printf true || printf false)" "$items" "$add_json" "$key_json"
   elif [[ $ssh_on == 1 ]]; then
     printf '\nTailscale SSH is on; run: herdr-kit setup (turns it off)\n'
   elif [[ -n $add_line ]]; then
-    printf '\nOn your hub, run: %s\n' "$add_line"
+    # Herdr checks host keys strictly and logs in by key: ssh-copy-id settles both first.
+    printf '\nOn your hub, run:\n  ssh-copy-id %s\n  %s\n\n' "$name" "$add_line"
+    if [[ -n $fingerprint ]]; then
+      printf 'ssh-copy-id asks to trust this machine: accept only %s\n' "$fingerprint"
+    else
+      printf 'ssh-copy-id asks to trust this machine: accept its host key.\n'
+    fi
+    printf 'If ssh says the host key changed (Tailscale SSH was on before), run the ssh-keygen -R line it prints, then retry.\n'
   fi
 
   [[ $bad == 0 ]]

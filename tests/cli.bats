@@ -12,6 +12,14 @@ setup() {
   [[ $output == *"Not affiliated with Herdr or Tailscale"* ]]
 }
 
+@test "works when invoked through a symlink" {
+  ln -s "$HK" "$BATS_TEST_TMPDIR/herdr-kit"
+  run "$BATS_TEST_TMPDIR/herdr-kit" --help
+  [ "$status" -eq 0 ]
+  [[ $output == *"setup "* ]]
+  [[ $output == *"doctor "* ]]
+}
+
 @test "no command prints usage" {
   run "$HK"
   [ "$status" -eq 0 ]

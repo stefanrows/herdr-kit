@@ -3,7 +3,18 @@
 # Thin subcommand dispatcher: every cmd_<name> function is a subcommand.
 set -euo pipefail
 
-HK_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Follow ~/.local/bin/herdr-kit to the share tree; dirname of a symlink is bin/.
+_hk_self=${BASH_SOURCE[0]}
+while [[ -L $_hk_self ]]; do
+  _hk_dir=$(cd "$(dirname "$_hk_self")" && pwd)
+  _hk_link=$(readlink "$_hk_self")
+  case $_hk_link in
+    /*) _hk_self=$_hk_link ;;
+    *) _hk_self=$_hk_dir/$_hk_link ;;
+  esac
+done
+HK_ROOT="$(cd "$(dirname "$_hk_self")" && pwd)"
+unset _hk_self _hk_dir _hk_link
 export HK_ROOT
 
 # shellcheck source=lib/ui.sh
