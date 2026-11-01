@@ -1,4 +1,4 @@
-SHELL_FILES := herdr-kit $(wildcard lib/*.sh)
+SHELL_FILES := herdr-kit install.sh $(wildcard lib/*.sh)
 
 .PHONY: check lint test
 
