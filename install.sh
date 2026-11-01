@@ -71,7 +71,7 @@ _hk_fetch() {
   mkdir -p "$staging"
   if command -v git >/dev/null 2>&1; then
     used_git=1
-    if GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "$HK_REF" --quiet "$HK_REPO" "$src"; then
+    if GIT_TERMINAL_PROMPT=0 git -c advice.detachedHead=false clone --depth 1 --branch "$HK_REF" --quiet "$HK_REPO" "$src"; then
       fetched=1
     fi
   fi
