@@ -79,7 +79,10 @@ If ssh says the host key changed (Tailscale SSH was on before), run the ssh-keyg
 - Official install sources only: `herdr.dev/install.sh`, `tailscale.com/install.sh`,
   Homebrew and pacman. Use `--dry-run` to see exactly what would run.
 
-<!-- TODO(STEFAN): at release, add a "Video and guide" section with the branded short links. -->
+## Video and guide
+
+- Video: [Herdr: Run Claude Code Agents on Every Machine You Own](https://youtu.be/plb8d-DR4I8)
+- Guide, with every command: [ceos3c.com](https://stefanrows.com/go/herdr-guide)
 
 ## More Herdr tools
 
